@@ -1,75 +1,58 @@
-# span-finder
-Parse sentences by finding &amp; labeling spans
+# span-finder FN-Br
 
-## Installation
+This is a fork of the original [span-finder](https://github.com/hiaoxui/span-finder) with adaptations made by FrameNet Brasil.
 
-Environment:
-- python 3.8
-- python-pip
+The model is dockerized to make it easier to use.
 
-Suppose you are using Anaconda, you can create such an environment
+## Building the container
+
+Make sure you have docker installed and then run at the root of the repo:
 
 ```shell
-conda create -n spanfinder python=3.8
-conda activate spanfinder
+docker build . -t "<tag-name>"
 ```
 
-If you have CUDA devices, run the following line
-```shell
-conda install pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0 cudatoolkit=11.3 -c pytorch
-```
-
-To install the dependencies, execute
-
-``` shell
-pip3 install -r requirements.txt
-```
-
-
-Optionally, you may install the package via
-``` shell
-python3 setup.py install
-```
-and import span-finder with `import sftp`.
-
-## Demo
-
-A demo (combined with Patrick's coref model) is [here](https://nlp.jhu.edu/demos/lome).
-
-## Inference Only
-
-If you use SpanFinder only for inference, we provide a checkpoint that was trained on FrameNet v1.7.
-[This example](scripts/predict_span.py) shows the basic API of SpanFinder.
-Note that the script will incur a checkpoint download everytime, so the best way is to
-download [the checkpoint](https://gqin.top/sftp-fn) to local (~1.7GiB), or better extract it out, 
-and then point the `-m` argument to the archived file or extracted folder.
-
+A good ``<tag-name>`` to make things easier is **lome**.
 
 ## Training
 
-For training, you may need to read [an overall document](docs/overall.md),
-[the doc for data](docs/data.md), and [the doc for training](docs/training.md).
+When the docker image is built, it already configures relevant paths for the training procedure. To run the default training, two volumes must be mapped:
 
-## Paper
+- **Data**: this is where the training data is located, the folder must contain the files ``train.jsonl``, ``dev.jsonl``, ``test.jsonl`` and ``ontology``;
+- **Checkpoint**: this is the folder in the host machine where the model checkpoints will be saved (_There's no need to create this folder, only map it, the docker process will create it automatically_).
 
-Welcome to cite our work if you found it useful:
+Suppose these two folders are ``data`` and ``model-checkpoint`` in the current folder. The run command should be:
 
-```bibtex
-@inproceedings{xia-etal-2021-lome,
-    title = "{LOME}: Large Ontology Multilingual Extraction",
-    author = "Xia, Patrick  and
-      Qin, Guanghui  and
-      Vashishtha, Siddharth  and
-      Chen, Yunmo  and
-      Chen, Tongfei  and
-      May, Chandler  and
-      Harman, Craig  and
-      Rawlins, Kyle  and
-      White, Aaron Steven  and
-      Van Durme, Benjamin",
-    booktitle = "Proceedings of the 16th Conference of the European Chapter of the Association for Computational Linguistics: System Demonstrations",
-    year = "2021",
-    url = "https://www.aclweb.org/anthology/2021.eacl-demos.19",
-    pages = "149--159",
-}
+```shell
+sudo docker run -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ --gpus all -it "lome"
+```
+
+Once inside the container, you can run the following training command:
+
+```shell
+allennlp train -s $CHECKPOINT_PATH --include-package sftp config/fn.jsonnet
+```
+
+It is important to note that ``$CHECKPOINT_PATH`` is already set on the image. To check all the default configurations for paths, check [.env.default](.env.default). Just be careful: if any of those paths are changed, the mapping of volumes need to change as well. The most important value is ``CUDA``. By default, the process will try to use **cuda:0**. To train on CPU, use the following command when running the container:
+
+```shell
+sudo docker run -e CUDA=[-1] -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ -it "lome"
+```
+
+or set the variable inside the container:
+
+```shell
+export CUDA=[-1]
+```
+
+Finally, to make changes to training parameters, make a copy of [config/fn.jsonnet](config/fn.jsonnet), change parameters and map the new file to the container using ``-v`` when running. Then only the last part of the training command needs to be changed:
+
+```shell
+allennlp train -s $CHECKPOINT_PATH --include-package sftp <path-to-jsonnet>
+```
+
+After the training is done, the ckeckpoints should be available at ``model-checkpoint``. If docker was executed as **sudo**, just change permissions to see the results.
+
+```shell
+sudo chown -R $USER ./model-checkpoint/
 ```

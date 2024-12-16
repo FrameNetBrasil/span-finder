@@ -109,7 +109,7 @@ local patience = null;
     },
 
     trainer: {
-        num_epochs: 128,
+        num_epochs: 2,
         patience: patience,
         [if std.length(cuda_devices) == 1 then "cuda_device"]: cuda_devices[0],
         validation_metric: "+em_f",
