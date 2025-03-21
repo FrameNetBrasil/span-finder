@@ -1,0 +1,20 @@
+[default]
+config = "fnbr_db"
+
+[fnbr_db]
+version = "4.0"
+host = "localhost"
+port = 3307
+name = "webtool40_db"
+user = "user"
+password = "password"
+corpora = ["crp_cetenfolha","crp_braziltour","crp_domínio_público","crp_copa 2014 fn-br","crp_copa 2014 fn-br english","crp_copa_2014_fn-br_espanhol","crp_m.knob_pt_br","crp_metonimia","crp_general","crp_legenda_en","crp_pedro_pelo_mundo","crp_hoje_eu_nao_quero","crp_pedro_pelo_mundo_en","crp_curso_dataset","crp_curta_metragem_enqvs_linguas",]
+
+[ehr_db]
+version = "4.0"
+host = "localhost"
+port = 3307
+name = "webtool40_db"
+user = "user"
+password = "password"
+corpora = ["crp_gbv/recife/sinan", "crp_gbv/recife/e-sus aps", "crp_gbv/são caetano do sul/prontuários"]
