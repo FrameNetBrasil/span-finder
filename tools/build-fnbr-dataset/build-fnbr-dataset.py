@@ -1,3 +1,5 @@
+import time
+
 import os
 import argparse
 import json
@@ -9,7 +11,7 @@ from operator import itemgetter
 from utils.ehr_post import deanonymize
 from utils.fn17_parser import parse_spans
 from utils.fnbr_db import get_fn_structure, get_spans
-from utils.tokenization import spacy_tokenize as tokenize, get_token_spans
+from utils.tokenization import get_token_spans, spacy_tokenize, trankit_tokenize
 
 # Constants
 VALID_SOURCES = {"fn17", "fnbr", "ehr"}
@@ -209,6 +211,19 @@ def parse_args():
         help="The DB from which the FrameNet structure will be extracted from. Must be one of the databases on the db_config",
     )
     parser.add_argument(
+        "--tokenizer",
+        type=str,
+        default="trankit",
+        choices=["trankit", "spacy"],
+        help="The tokenizer to be used",
+    )
+    parser.add_argument(
+        "--use_gpu",
+        type=str,
+        default=True,
+        help="Whether the GPU will be used for Trankit tokenizer",
+    )
+    parser.add_argument(
         "--splits",
         type=str,
         default="70,15,15",
@@ -262,7 +277,18 @@ if __name__ == "__main__":
         df = pd.concat([df, spans], ignore_index=True)
 
     logging.info("Tokenizing data...")
-    df["tokens"] = df.apply(tokenize, axis=1)
+    if args.tokenizer == "trankit":
+        logging.info("Using trankit tokenizer...")
+        start = time.perf_counter()
+        df["tokens"] = trankit_tokenize(df, args.use_gpu)
+        end = time.perf_counter()
+        logging.info(f"tokenization took {end - start:.4f} seconds")
+    else:
+        logging.info("Using spaCy tokenizer...")
+        start = time.perf_counter()
+        df["tokens"] = spacy_tokenize(df, args.use_gpu)
+        end = time.perf_counter()
+        logging.info(f"tokenization took {end - start:.4f} seconds")
 
     logging.info("Calculating token spans...")
     token_spans = df.apply(get_token_spans, axis=1)

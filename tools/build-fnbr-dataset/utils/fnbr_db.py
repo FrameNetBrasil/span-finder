@@ -55,6 +55,7 @@ def get_spans_40(engine, corpora):
         where c.entry in %(corpora)s
             and d.idLanguage = 2
             and f.idLanguage = 2
+            and s.idLanguage in (1, 2, 3)
         union all
         --
         -- FEs (normal and incorporation)
@@ -84,6 +85,7 @@ def get_spans_40(engine, corpora):
             and fe.idLanguage = 2
             and d.idLanguage = 2
             and f.idLanguage = 2
+            and s.idLanguage in (1, 2, 3)
             and fe.idInstantiationType in (12, 17);'''
     
     params = { "corpora": tuple(corpora) }

@@ -1,34 +1,62 @@
 from spacy.lang.en import English
 from spacy.lang.es import Spanish
 from spacy.lang.pt import Portuguese
-from spacy.attrs import ORTH
+from trankit import Pipeline
 
-EN_TOKENIZER = English().tokenizer
-ES_TOKENIZER = Spanish().tokenizer
-PT_TOKENIZER = Portuguese().tokenizer
+TRANKIT_PIPE = None
 
-PT_TOKENIZER.add_special_case("[NUM]", [{ ORTH: "[NUM]"}])
-PT_TOKENIZER.add_special_case("[NAME]", [{ ORTH: "[NAME]"}])
-PT_TOKENIZER.add_special_case("[DATE]", [{ ORTH: "[DATE]"}])
-PT_TOKENIZER.add_special_case("[TIME]", [{ ORTH: "[TIME]"}])
-PT_TOKENIZER.add_special_case("[VENUE]", [{ ORTH: "[VENUE]"}])
-PT_TOKENIZER.add_special_case("[TIMESPAN]", [{ ORTH: "[TIMESPAN]"}])
-PT_TOKENIZER.add_special_case("[...]", [{ ORTH: "[...]"}])
 
-def spacy_tokenize(row):
-    '''
-    Tokenization will be done using spaCy models.
-    A different model is used depending on whether the text is in English or in Portuguese.
-    '''
-    tokenizer = PT_TOKENIZER if row["language"] == "pt" else EN_TOKENIZER
-    return list(tokenizer(row["text"]))
+def spacy_tokenize(df):
+    tokenizers = {
+        "en": English().tokenizer,
+        "pt": Portuguese().tokenizer,
+        "es": Spanish().tokenizer,
+    }
+
+    unique_texts = df.drop_duplicates("text")[["text", "language"]]
+    unique_texts["tokens"] = [
+        [token.text for token in tokenizers[lang](text)]
+        for lang, text in zip(unique_texts["language"], unique_texts["text"])
+    ]
+
+    return df.merge(unique_texts, on=["text", "language"], how="left")["tokens"]
 
 
 def spacy_linearize(tokens):
-    '''
+    """
     Transforms a list of spaCy tokens back to string.
-    '''
-    return ''.join(t.text_with_ws for t in tokens)
+    """
+    return "".join(t.text_with_ws for t in tokens)
+
+
+def trankit_tokenize(df, gpu):
+    trankit_languages = {"pt": "portuguese-gsd", "en": "english", "es": "spanish-gsd"}
+
+    pipe = Pipeline("english", gpu=gpu)
+    for language in trankit_languages.values():
+        pipe.add(language)
+
+    unique_texts = df.drop_duplicates("text")[["text", "language"]]
+
+    text_to_tokens = {}
+    for language, group in unique_texts.groupby("language"):
+        pipe.set_active(trankit_languages[language])
+
+        split_pos = (group["text"].str.len() + 5).cumsum().tolist()
+        joint_string = ("\n" * 5).join(group["text"])
+        tokens = pipe.tokenize(joint_string, is_sent=True)["tokens"]
+
+        token_lists = [[] for _ in range(len(group))]
+        sentence_idx = 0
+        for token in tokens:
+            if token["span"][0] >= split_pos[sentence_idx]:
+                sentence_idx += 1
+            token_lists[sentence_idx].append(token["text"])
+
+        text_to_tokens.update(dict(zip(group["text"], token_lists)))
+
+    unique_texts["tokens"] = unique_texts["text"].map(text_to_tokens)
+    return df.merge(unique_texts, on=["text", "language"], how="left")["tokens"]
 
 
 def get_token_spans(row):
@@ -42,5 +70,10 @@ def get_token_spans(row):
             break
     else:
         end_token = i
-    
+
     return start_token, end_token
+
+
+def test(df):
+    print("foi")
+    raise "Iha"
