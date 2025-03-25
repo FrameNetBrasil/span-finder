@@ -16,12 +16,34 @@ A good ``<tag-name>`` to make things easier is **lome**.
 
 ## Training
 
+### (optional) Building the dataset
+
+To train a new model with the most up-to-date data, the [build-fnbr-data](./tools/build-fnbr-dataset/) tool can be used. It is used to merge annotation from multiple sources, deanonymize them if required and convert annotation from character to token spans.
+
+The tool expects a list of sources as a comma-separated string that may contain values ``fn17``, ``fnbr`` and ``ehr``, representing Berkeley FrameNet's 1.7 release, "normal" FrameNet Brasil annotation data and annotation of EHRs (eletronic health records) that are anonymized. If ``fn17`` is in sources, the ``--fn17_path`` parameter must be specified pointing to a folder with the ``.xml`` files. For ``fnbr``, the connection to the database must be specified in a ``.toml`` file (Check [config.toml.template](tools/build-fnbr-dataset/config.toml.template) to see possible keys, including specification of which corpora should be used to train the model). Finally, source ``ehr`` requires both a database connection and the ``ehr_originaldb_path`` for the file containing the unanoymized version of the annotated sentences. 
+
+Another essential parameter is ``--structure_db`` (default: ehr_db), which specifies whether ``fnbr`` or ``ehr`` should be the main FrameNet structure. All other annotations will be mapped to that of the structure DB, guaranteeing that no inconsistent FEs or Frames are used to train the model.
+
+A typical command looks like this:
+
+```shell
+python build-fnbr-data.py data/ --sources=fn17,fnbr,ehr --db_config=./build-fnbr-dataset/config.toml --fn17_path=./fndata-1.7 --ehr_originaldb_path=./gbv-original-sents.csv --tokenizer=trankit
+```
+
+For a compreehensive explanation of all of its parameters run after installing required packages (use Python >=3.11):
+
+```shell
+python build-fnbr-data.py --help
+```
+
+### Running
+
 When the docker image is built, it already configures relevant paths for the training procedure. To run the default training, two volumes must be mapped:
 
 - **Data**: this is where the training data is located, the folder must contain the files ``train.jsonl``, ``dev.jsonl``, ``test.jsonl`` and ``ontology``;
 - **Checkpoint**: this is the folder in the host machine where the model checkpoints will be saved (_There's no need to create this folder, only map it, the docker process will create it automatically_).
 
-Suppose these two folders are ``data`` and ``model-checkpoint`` in the current folder. The run command should be:
+Suppose the **Data** and **Checkpoint** folders are ``data`` and ``model-checkpoint`` in the current folder. The run command should be:
 
 ```shell
 sudo docker run -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ --gpus all -it "lome"
