@@ -8,4 +8,7 @@ while IFS='=' read -r key value; do
   fi
 done < .env
 
+METADATA_PATH="${DATA_PATH}/meta.json"
+export DATASET_TIMESTAMP=$(jq -r '.timestamp' "$METADATA_PATH")
+
 exec bash

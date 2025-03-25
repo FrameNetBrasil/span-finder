@@ -14,6 +14,9 @@ RUN pip install -r requirements.txt
 ARG PRETRAINED_ENCODER=xlm-roberta-large
 RUN python -c "from transformers import AutoModel; model = AutoModel.from_pretrained('$PRETRAINED_ENCODER');"
 
+# Install jq
+RUN apt-get update && apt-get install -y jq
+
 # Setup 'sfpt'
 COPY config config/
 COPY sftp sftp/

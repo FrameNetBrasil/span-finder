@@ -23,6 +23,7 @@ class SRLDatasetReader(SpanReader):
             event_only: bool = False,
             event_smoothing_factor: float = 0.,
             arg_smoothing_factor: float = 0.,
+            dataset_timestamp: str = "",
             # For Ontology Mapping
             ontology_mapping_path: Optional[str] = None,
             min_weight: float = 1e-2,

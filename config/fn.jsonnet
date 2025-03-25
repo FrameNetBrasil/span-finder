@@ -26,6 +26,9 @@ local grad_acc = 1;
 local cuda_devices = std.parseJson(std.extVar("CUDA"));
 local patience = null;
 
+# dataset meta
+local dataset_timestamp = std.extVar("DATASET_TIMESTAMP");
+
 {
     dataset_reader: {
         type: "semantic_role_labeling",
@@ -35,7 +38,9 @@ local patience = null;
         [ if debug then "max_instances" ]: 128,
         event_smoothing_factor: smoothing_factor,
         arg_smoothing_factor: smoothing_factor,
+        dataset_timestamp: dataset_timestamp,
     },
+    
     train_data_path: dataset_path + "/train.jsonl",
     validation_data_path: dataset_path + "/dev.jsonl",
     test_data_path: dataset_path + "/test.jsonl",
@@ -109,7 +114,7 @@ local patience = null;
     },
 
     trainer: {
-        num_epochs: 2,
+        num_epochs: 128,
         patience: patience,
         [if std.length(cuda_devices) == 1 then "cuda_device"]: cuda_devices[0],
         validation_metric: "+em_f",
