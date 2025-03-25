@@ -340,14 +340,15 @@ if __name__ == "__main__":
     df["startToken"] = token_spans.map(itemgetter(0))
     df["endToken"] = token_spans.map(itemgetter(1))
 
-    logging.info("Sample of spans to see if everything worked fine...")
-    test_spans(df)
+    assert (df["startToken"] <= df["endToken"]).all()
+    # logging.info("Sample of spans to see if everything worked fine...")
+    # test_spans(df)
 
     logging.info("Building instances...")
     instances = build_instances(df)
 
     logging.info("Splitting dataset into train, validation, and test sets...")
-    train, validate, test = split_instances(instances, args.splits)
+    train, dev, test = split_instances(instances, args.splits)
 
     logging.info("Writing metadata file...")
     write_meta(frames, fes, args, os.path.join(args.output_folder, "meta.json"))
@@ -357,7 +358,7 @@ if __name__ == "__main__":
 
     logging.info("Writing dataset to .jsonl files...")
     write_jsonl(train, os.path.join(args.output_folder, "train.jsonl"))
-    write_jsonl(validate, os.path.join(args.output_folder, "val.jsonl"))
+    write_jsonl(dev, os.path.join(args.output_folder, "dev.jsonl"))
     write_jsonl(test, os.path.join(args.output_folder, "test.jsonl"))
 
     logging.info("Dataset preparation completed successfully!")

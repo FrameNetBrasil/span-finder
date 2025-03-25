@@ -73,12 +73,11 @@ def get_token_spans(row):
     start_token = -1
 
     for i, token in enumerate(row["tokens"]):
-        if token.idx >= row["startChar"] and start_token == -1:
+        span = (token.idx, token.idx+len(token.text))
+        if (span[0] <= row["startChar"] <= span[1]) and (start_token == -1):
             start_token = i
-        if token.idx > row["endChar"]:
-            end_token = i - 1
+        if (span[0] <= row["endChar"] <= span[1]):
             break
-    else:
-        end_token = i
+    end_token = i
 
     return start_token, end_token

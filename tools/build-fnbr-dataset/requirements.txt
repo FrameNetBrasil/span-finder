@@ -1,6 +1,7 @@
 diff-match-patch==20230430
 numpy==1.26.0
 pandas==2.1.0
+PyMySQL==1.1.0
 spacy==3.7.2
 SQLAlchemy==2.0.23
 thefuzz==0.20.0
