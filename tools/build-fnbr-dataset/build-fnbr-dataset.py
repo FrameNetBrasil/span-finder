@@ -1,7 +1,6 @@
-import time
-
 import os
 import argparse
+import datetime
 import json
 import logging
 import tomllib
@@ -24,12 +23,16 @@ logging.basicConfig(
 
 
 def test_spans(spans):
-    sample = spans[(spans["idInstantiationType"] != "INC")].sample(n=min(len(spans), 15))
+    sample = spans[(spans["idInstantiationType"] != "INC")].sample(
+        n=min(len(spans)-1, 15)
+    )
 
     for _, row in sample.iterrows():
         index = row.name
-        char_based = row["text"][int(row["startChar"]):int(row["endChar"]) + 1]
-        token_based = ' '.join(map(str,row["tokens"][int(row["startToken"]):int(row["endToken"]) + 1]))
+        char_based = row["text"][int(row["startChar"]) : int(row["endChar"]) + 1]
+        token_based = " ".join(
+            map(str, row["tokens"][int(row["startToken"]) : int(row["endToken"]) + 1])
+        )
         print(f"{index} - {char_based}      {token_based}")
 
 
@@ -52,7 +55,9 @@ def build_instances(df):
 
             # Incorporations
             incorporation_idx = target_idx | (annoset["idInstantiationType"] == "INC")
-            incorporations = annoset.loc[incorporation_idx, "idFrameElement"].dropna().unique()
+            incorporations = (
+                annoset.loc[incorporation_idx, "idFrameElement"].dropna().unique()
+            )
             for fe in incorporations:
                 children.append(
                     {"span": target_span, "label": f"fe_{fe}", "children": []}
@@ -95,6 +100,50 @@ def split_instances(instances, percentages):
     train, validate, test = np.split(instances, splits[:-1])
 
     return train, validate, test
+
+
+def write_meta(frames, fes, args, filename):
+    names = {}
+    for lang in ["pt", "en"]:
+        names[lang] = {}
+        names[lang].update(
+            zip(
+                map(lambda s: f"frm_{s}", frames["idFrame"]),
+                frames[f"frameName_{lang}"],
+            )
+        )
+        names[lang].update(
+            zip(map(lambda s: f"fe_{s}", fes["idFrameElement"]), fes[f"feName_{lang}"])
+        )
+
+    with open(filename, "w") as fp:
+        json.dump(
+            {
+                "timestamp": str(datetime.datetime.now()),
+                "structure_db": args.db_config[args.structure_db]["name"],
+                "frames": [
+                    {
+                        "id": f"frm_{frm_id}",
+                        "fes": fes[fes["idFrame"] == frm_id]
+                        .groupby("coreType")["idFrameElement"]
+                        .apply(lambda x: [f"fe_{fe}" for fe in x])
+                        .to_dict(),
+                        "lus": lus[lus["idFrame"] == frm_id]
+                        .groupby("language")
+                        .apply(
+                            lambda g: {
+                                f"lu_{row['idLU']}": row["name"]
+                                for _, row in g.iterrows()
+                            }
+                        )
+                        .to_dict(),
+                    }
+                    for frm_id in frames["idFrame"]
+                ],
+                "names": names,
+            },
+            fp,
+        )
 
 
 def write_ontology(frames, fes, spans, filename):
@@ -249,12 +298,14 @@ def parse_args():
 # Main Execution Block
 if __name__ == "__main__":
     args = parse_args()
-    logging.info("Starting dataset preparation...")
 
+    os.makedirs(args.output_folder, exist_ok=True)
+
+    logging.info("Starting dataset preparation...")
     logging.info(
         f"The base FrameNet structure is the one from the following DB config: {args.structure_db}"
     )
-    frames, fes = get_fn_structure(args.db_config[args.structure_db])
+    frames, fes, lus = get_fn_structure(args.db_config[args.structure_db])
     df = pd.DataFrame()
 
     if "fn17" in args.sources:
@@ -278,28 +329,28 @@ if __name__ == "__main__":
 
     logging.info("Tokenizing data...")
     if args.tokenizer == "trankit":
-        logging.info("Using trankit tokenizer...")
-        start = time.perf_counter()
+        logging.info("Using trankit tokenizer (this may take awhile)...")
         df["tokens"] = trankit_tokenize(df, args.use_gpu)
-        end = time.perf_counter()
-        logging.info(f"tokenization took {end - start:.4f} seconds")
     else:
         logging.info("Using spaCy tokenizer...")
-        start = time.perf_counter()
-        df["tokens"] = spacy_tokenize(df, args.use_gpu)
-        end = time.perf_counter()
-        logging.info(f"tokenization took {end - start:.4f} seconds")
+        df["tokens"] = spacy_tokenize(df)
 
     logging.info("Calculating token spans...")
     token_spans = df.apply(get_token_spans, axis=1)
     df["startToken"] = token_spans.map(itemgetter(0))
     df["endToken"] = token_spans.map(itemgetter(1))
 
+    logging.info("Sample of spans to see if everything worked fine...")
+    test_spans(df)
+
     logging.info("Building instances...")
     instances = build_instances(df)
 
     logging.info("Splitting dataset into train, validation, and test sets...")
     train, validate, test = split_instances(instances, args.splits)
+
+    logging.info("Writing metadata file...")
+    write_meta(frames, fes, args, os.path.join(args.output_folder, "meta.json"))
 
     logging.info("Writing ontology file...")
     write_ontology(frames, fes, df, os.path.join(args.output_folder, "ontology"))

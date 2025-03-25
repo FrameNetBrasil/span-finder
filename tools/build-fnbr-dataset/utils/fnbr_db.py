@@ -2,30 +2,64 @@ import logging
 import pandas as pd
 from sqlalchemy import create_engine
 
+
 def get_fn_structure(config):
-    engine = create_engine(f'mysql+pymysql://{config["user"]}:{config["password"]}@{config["host"]}:{config["port"]}/{config["name"]}')
+    engine = create_engine(
+        f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['name']}"
+    )
 
-    frames = pd.read_sql('''
+    frames = pd.read_sql(
+        """
         select
-            frm.idFrame,
-            entry.name as 'frameName'
-        from frame frm
-        join entry on entry.entry = frm.entry and entry.idLanguage = 2
-            and exists (select 1 from lu where lu.idFrame = frm.idFrame);''', engine)
+            frm1.idFrame,
+            frm1.name as 'frameName_pt',
+            frm2.name as 'frameName_en'
+        from view_frame frm1
+        join view_frame frm2 on frm2.idFrame = frm1.idFrame
+        where frm1.idLanguage = 1 and frm2.idLanguage = 2;""",
+        engine,
+    )
 
-    fes = pd.read_sql('''
+    fes = pd.read_sql(
+        """
+        select
+            fe1.idFrame,
+            fe1.idFrameElement,
+            fe1.name as 'feName_pt',
+            fe2.name as 'feName_en',
+            fe1.coreType
+        from view_frameelement fe1
+        join view_frameelement fe2 on fe2.idFrameElement = fe1.idFrameElement
+        where fe1.idLanguage = 1 and fe2.idLanguage = 2;
+        """,
+        engine,
+    )
+
+    lus = pd.read_sql(
+        """
         select distinct
-            fe.idFrame,
-            fe.idFrameElement,
-            entry.name as 'feName'
-        from frameelement fe
-        join entry on entry.entry = fe.entry and entry.idLanguage = 2;''', engine)
-    
-    return frames, fes[fes["idFrame"].isin(frames["idFrame"])]
+            lu.idFrame,
+            lu.idLU,
+            lu.incorporatedFE as 'idFrameElement',
+            lu.name,
+            lu.idLanguage as 'language'
+        from view_lu lu
+        where lu.idLanguage in (1, 2, 3);""",
+        engine,
+    )
+
+    lus["idFrameElement"] = lus["idFrameElement"].replace({0: None}).astype("Int64")
+    lus["language"] = lus["language"].replace({1: "pt", 2: "en", 3: "es"})
+
+    return (
+        frames,
+        fes[fes["idFrame"].isin(frames["idFrame"])],
+        lus[lus["idFrame"].isin(frames["idFrame"])],
+    )
 
 
 def get_spans_40(engine, corpora):
-    query = '''
+    query = """
         --
         -- Targets
         --
@@ -37,8 +71,8 @@ def get_spans_40(engine, corpora):
             a.idAnnotationSet,
             true as 'isTarget',
             null as 'idInstantiationType',
-            f.name as 'frameName',
-            fe.defaultName as 'feName',
+            f.name as 'frameName_en',
+            fe.defaultName as 'feName_en',
             gl.startChar,
             gl.endChar,
             s.idLanguage as 'language',
@@ -68,8 +102,8 @@ def get_spans_40(engine, corpora):
             a.idAnnotationSet,
             false as 'isTarget',
             fe.idInstantiationType,
-            f.name as 'frameName',
-            fe.name as 'feName',
+            f.name as 'frameName_en',
+            fe.name as 'feName_en',
             fe.startChar,
             fe.endChar,
             s.idLanguage,
@@ -86,27 +120,29 @@ def get_spans_40(engine, corpora):
             and d.idLanguage = 2
             and f.idLanguage = 2
             and s.idLanguage in (1, 2, 3)
-            and fe.idInstantiationType in (12, 17);'''
-    
-    params = { "corpora": tuple(corpora) }
+            and fe.idInstantiationType in (12, 17);"""
+
+    params = {"corpora": tuple(corpora)}
     df = pd.read_sql(query, engine, params=params)
 
     df["isTarget"] = df["isTarget"].astype(bool)
-    df["idInstantiationType"] = df["idInstantiationType"].replace({ 12: "NORMAL", 17: "INC" })
-    df["language"] = df["language"].replace({ 1: "pt", 2: "en", 3: "es" })
+    df["idInstantiationType"] = df["idInstantiationType"].replace(
+        {12: "NORMAL", 17: "INC"}
+    )
+    df["language"] = df["language"].replace({1: "pt", 2: "en", 3: "es"})
 
     return df
 
 
 def get_spans_38(engine, corpora):
-    query = '''
+    query = """
         select
             corpus.idCorpus,
             sentence.`text`,
             annotationset.idAnnotationSet,
             case when layer.idLayerType = 2 then true else false end as 'isTarget',
-            frmentry.name as 'frameName',
-            feentry.name as 'feName',
+            frmentry.name as 'frameName_en',
+            feentry.name as 'feName_en',
             label.startChar,
             label.endChar,
             sentence.idLanguage as 'language',
@@ -126,37 +162,40 @@ def get_spans_38(engine, corpora):
         where sentence.idLanguage in (1,2,3)
             and corpus.entry in %(corpora)s
             and layer.idLayerType in (1, 2) -- FE and target
-            and label.idInstantiationType in (12, 17) -- normal instantiation and incorporation'''
-    
-    params = { "corpora": tuple(corpora) }
+            and label.idInstantiationType in (12, 17) -- normal instantiation and incorporation"""
+
+    params = {"corpora": tuple(corpora)}
     df = pd.read_sql(query, engine, params=params)
-    
+
     df["isTarget"] = df["isTarget"].astype(bool)
-    df["language"] = df["language"].replace({ 1: "pt", 2: "en", 3: "es" })
+    df["language"] = df["language"].replace({1: "pt", 2: "en", 3: "es"})
 
     return df
 
 
 def get_spans(all_config, config_key, frames, fes):
     config = all_config[config_key]
-    engine = create_engine(f'mysql+pymysql://{config["user"]}:{config["password"]}@{config["host"]}:{config["port"]}/{config["name"]}')
+    engine = create_engine(
+        f"mysql+pymysql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['name']}"
+    )
 
     if config["version"] == "4.0":
         df = get_spans_40(engine, config["corpora"])
     elif config["version"] == "3.8":
         df = get_spans_38(engine, config["corpora"])
     else:
-        raise ValueError("Invalid value for DB 'version'. Must be one of: \"4.0\", \"3.8\".")
-    
+        raise ValueError(
+            'Invalid value for DB \'version\'. Must be one of: "4.0", "3.8".'
+        )
 
     # Filter out sentences in which one or more frames were not found on the structure
-    df = df.merge(frames, how="left", on="frameName")
+    df = df.merge(frames, how="left", on="frameName_en")
     not_found = df["idFrame_y"].isna()
     not_found_sents = df.loc[not_found, "text"].unique()
     if not_found.sum() > 1:
         logging.warning(
             f"The following frames are annotated on {config_key} but are not of the current FN structure: \n-"
-            + "\n-".join(df.loc[not_found, "frameName"].unique())
+            + "\n-".join(df.loc[not_found, "frameName_en"].unique())
         )
         logging.warning(
             f"{len(not_found_sents)} sentences where these frames annotated will be ignored"
@@ -166,15 +205,15 @@ def get_spans(all_config, config_key, frames, fes):
     df.drop(columns=["idFrame_x", "idFrame_y"], inplace=True)
 
     # Check for FE matching
-    df = df.merge(fes, how="left", on=["idFrame", "feName"])
+    df = df.merge(fes, how="left", on=["idFrame", "feName_en"])
     not_found = ~df["isTarget"] & df["idFrameElement_y"].isna()
 
     if len(df[not_found]) > 0:
-        distinct_pairs = df[not_found][["frameName", "feName"]].drop_duplicates()
+        distinct_pairs = df[not_found][["frameName_en", "feName_en"]].drop_duplicates()
         logging.warning(
             f"Some (Frame, FE) pairs from {config_key} could not be mapped to current structure: \n"
             + "\n".join(
-                f"- Frame: {row['frameName']}, FE: {row['feName']}"
+                f"- Frame: {row['frameName_en']}, FE: {row['feName_en']}"
                 for _, row in distinct_pairs.iterrows()
             )
             + "\n\n They could've been renamed or the DB must be revised."
@@ -186,5 +225,5 @@ def get_spans(all_config, config_key, frames, fes):
     df["idFrame"] = df["idFrame"].astype("Int64")
     df["idFrameElement"] = df["idFrameElement_y"].astype("Int64")
     df.drop(columns=["idFrameElement_x", "idFrameElement_y"], inplace=True)
-    
+
     return df

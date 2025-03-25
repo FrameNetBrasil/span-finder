@@ -121,8 +121,8 @@ def parse_spans(release_path, frames, fes):
             "idAnnotationSet",
             "isTarget",
             "idInstantiationType",
-            "frameName",
-            "feName",
+            "frameName_en",
+            "feName_en",
             "startChar",
             "endChar",
             "language",
@@ -131,24 +131,24 @@ def parse_spans(release_path, frames, fes):
 
     # Manually update some data
     df.loc[
-        (df["frameName"] == "Medical_intervention")
-        & (df["feName"] == "Medical_condition"),
-        "feName",
+        (df["frameName_en"] == "Medical_intervention")
+        & (df["feName_en"] == "Medical_condition"),
+        "feName_en",
     ] = "Health_condition"
     df.loc[
-        (df["frameName"] == "Medical_intervention")
-        & (df["feName"] == "Medical_professional"),
-        "feName",
+        (df["frameName_en"] == "Medical_intervention")
+        & (df["feName_en"] == "Medical_professional"),
+        "feName_en",
     ] = "Healthcare_professional"
 
     # Filter out sentences in which one or more frames were not found on the structure
-    df = df.merge(frames, how="left", on="frameName")
+    df = df.merge(frames, how="left", on="frameName_en")
     not_found = df["idFrame"].isna()
     not_found_sents = df.loc[not_found, "text"].unique()
     if not_found.sum() > 1:
         logging.warning(
             "The following frames are annotated on 1.7 release but are not of the current FN structure: \n-"
-            + "\n-".join(df.loc[not_found, "frameName"].unique())
+            + "\n-".join(df.loc[not_found, "frameName_en"].unique())
         )
         logging.warning(
             f"{len(not_found_sents)} sentences with these frames annotated will be ignored"
@@ -156,15 +156,15 @@ def parse_spans(release_path, frames, fes):
     df = df[~df["text"].isin(not_found_sents)]
 
     # Check for FE matching
-    df = df.merge(fes, how="left", on=["idFrame", "feName"])
+    df = df.merge(fes, how="left", on=["idFrame", "feName_en"])
     not_found = ~df["isTarget"] & df["idFrameElement"].isna()
 
     if len(df[not_found]) > 0:
-        distinct_pairs = df[not_found][["frameName", "feName"]].drop_duplicates()
+        distinct_pairs = df[not_found][["frameName_en", "feName_en"]].drop_duplicates()
         logging.warning(
             "Some (Frame, FE) pairs from 1.7 release could not be mapped to current DB: \n"
             + "\n".join(
-                f"- Frame: {row['frameName']}, FE: {row['feName']}"
+                f"- Frame: {row['frameName_en']}, FE: {row['feName_en']}"
                 for _, row in distinct_pairs.iterrows()
             )
             + "\n\n They could've been renamed or the DB must be revised."

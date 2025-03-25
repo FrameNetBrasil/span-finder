@@ -6,6 +6,18 @@ from trankit import Pipeline
 TRANKIT_PIPE = None
 
 
+class Token:
+    def __init__(self, text: str, idx: int):
+        self.text = text
+        self.idx = idx
+
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return f"Token(text={self.text!r}, idx={self.idx})"
+
+
 def spacy_tokenize(df):
     tokenizers = {
         "en": English().tokenizer,
@@ -15,18 +27,11 @@ def spacy_tokenize(df):
 
     unique_texts = df.drop_duplicates("text")[["text", "language"]]
     unique_texts["tokens"] = [
-        [token.text for token in tokenizers[lang](text)]
+        [Token(text=token.text, idx=token.idx) for token in tokenizers[lang](text)]
         for lang, text in zip(unique_texts["language"], unique_texts["text"])
     ]
 
     return df.merge(unique_texts, on=["text", "language"], how="left")["tokens"]
-
-
-def spacy_linearize(tokens):
-    """
-    Transforms a list of spaCy tokens back to string.
-    """
-    return "".join(t.text_with_ws for t in tokens)
 
 
 def trankit_tokenize(df, gpu):
@@ -51,7 +56,12 @@ def trankit_tokenize(df, gpu):
         for token in tokens:
             if token["span"][0] >= split_pos[sentence_idx]:
                 sentence_idx += 1
-            token_lists[sentence_idx].append(token["text"])
+            token_sent_idx = token["span"][0] - (
+                split_pos[sentence_idx - 1] if sentence_idx > 0 else 0
+            )
+            token_lists[sentence_idx].append(
+                Token(text=token["text"], idx=token_sent_idx)
+            )
 
         text_to_tokens.update(dict(zip(group["text"], token_lists)))
 
@@ -72,8 +82,3 @@ def get_token_spans(row):
         end_token = i
 
     return start_token, end_token
-
-
-def test(df):
-    print("foi")
-    raise "Iha"
