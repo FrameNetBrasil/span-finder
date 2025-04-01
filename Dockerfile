@@ -24,6 +24,9 @@ COPY setup.py .
 COPY .env.default .env
 RUN python setup.py install
 
+# Copy files for DEMO
+COPY tools/demo tools/demo/
+
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

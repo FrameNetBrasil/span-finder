@@ -36,7 +36,7 @@ For a compreehensive explanation of all of its parameters run after installing r
 python build-fnbr-data.py --help
 ```
 
-### Running
+### Running training procedure
 
 When the docker image is built, it already configures relevant paths for the training procedure. To run the default training, two volumes must be mapped:
 
@@ -77,4 +77,12 @@ After the training is done, the ckeckpoints should be available at ``model-check
 
 ```shell
 sudo chown -R $USER ./model-checkpoint/
+```
+
+## Running demo
+
+The docker image also contains the files required to run the demo. To do so, when running the container the folder with the ``model`` files must be mapped as volume to /srv/model. The ports also need to be mapped for that to work:
+
+```shell
+sudo docker run -v $(pwd)/model/:/srv/model -p 7749:7749 --gpus all --entrypoint python -it "span-finder" tools/demo/flask_backend.py
 ```

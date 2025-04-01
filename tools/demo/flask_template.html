@@ -657,11 +657,17 @@ Tooltip
 
 <div class="container">
 <div class="card border-dark mb-3">
+    <div class="card-header">FrameNet parser (training timestamp: TIMESTAMP)</div>
     <div class="card-body">
         <form action="/">
             <div class="form-group">
                 <label for="sentence">Text (sentences separated by lines): </label><br>
                 <textarea type="text" id="sentence" name="sentence" rows="8" cols="64" class="form-control">DEFAULT_SENTENCE</textarea><br>
+                <label for="lang">Language (of the output frames): </label><br>
+                <select id="lang" name="lang">
+                    <option value="pt">Portuguese</option>
+                    <option value="en">English</option>
+                </select><br><br>
             </div>
             <input type="submit" value="Parse" class="btn btn-primary">
         </form>
