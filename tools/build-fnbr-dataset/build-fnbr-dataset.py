@@ -24,7 +24,7 @@ logging.basicConfig(
 
 def test_spans(spans):
     sample = spans[(spans["idInstantiationType"] != "INC")].sample(
-        n=min(len(spans)-1, 15)
+        n=min(len(spans) - 1, 15)
     )
 
     for _, row in sample.iterrows():
@@ -37,7 +37,7 @@ def test_spans(spans):
 
 
 # Data Processing Functions
-def build_instances(df):
+def build_instances(df, include_incorporations=True):
     instances = []
     for _, sent_group in df.groupby("text"):
         annotations = []
@@ -55,13 +55,15 @@ def build_instances(df):
 
             # Incorporations
             incorporation_idx = target_idx | (annoset["idInstantiationType"] == "INC")
-            incorporations = (
-                annoset.loc[incorporation_idx, "idFrameElement"].dropna().unique()
-            )
-            for fe in incorporations:
-                children.append(
-                    {"span": target_span, "label": f"fe_{fe}", "children": []}
+
+            if include_incorporations:
+                incorporations = (
+                    annoset.loc[incorporation_idx, "idFrameElement"].dropna().unique()
                 )
+                for fe in incorporations:
+                    children.append(
+                        {"span": target_span, "label": f"fe_{fe}", "children": []}
+                    )
 
             # Normal instantiation
             for _, fe in annoset[~incorporation_idx].iterrows():
@@ -121,6 +123,8 @@ def write_meta(frames, fes, args, filename):
             {
                 "timestamp": str(datetime.datetime.now()),
                 "structure_db": args.db_config[args.structure_db]["name"],
+                "incorporations_included": args.include_inc,
+                "tokenizer": args.tokenizer,
                 "frames": [
                     {
                         "id": f"frm_{frm_id}",
@@ -132,7 +136,12 @@ def write_meta(frames, fes, args, filename):
                         .groupby("language")
                         .apply(
                             lambda g: {
-                                f"lu_{row['idLU']}": row["name"]
+                                f"lu_{row['idLU']}": {
+                                    "name": row["name"],
+                                    "incorporated_fe": None
+                                    if pd.isna(row["idFrameElement"])
+                                    else row["idFrameElement"],
+                                }
                                 for _, row in g.iterrows()
                             }
                         )
@@ -278,6 +287,12 @@ def parse_args():
         default="70,15,15",
         help="The percentage of the training, validation and test splits of the dataset. Comma-separated.",
     )
+    parser.add_argument(
+        "--include_inc",
+        type=str,
+        default=True,
+        help="Whether to include incorporation annotations in the dataset.",
+    )
 
     args = parser.parse_args()
 
@@ -345,7 +360,7 @@ if __name__ == "__main__":
     # test_spans(df)
 
     logging.info("Building instances...")
-    instances = build_instances(df)
+    instances = build_instances(df, include_incorporations=args.include_inc)
 
     logging.info("Splitting dataset into train, validation, and test sets...")
     train, dev, test = split_instances(instances, args.splits)
