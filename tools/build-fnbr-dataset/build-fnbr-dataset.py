@@ -37,7 +37,7 @@ def test_spans(spans):
 
 
 # Data Processing Functions
-def build_instances(df, include_incorporations=True):
+def build_instances(df, include_incorporations):
     instances = []
     for _, sent_group in df.groupby("text"):
         annotations = []
@@ -289,10 +289,10 @@ def parse_args():
     )
     parser.add_argument(
         "--include_inc",
-        type=str,
-        default=True,
+        action=argparse.BooleanOptionalAction,
         help="Whether to include incorporation annotations in the dataset.",
     )
+    parser.set_defaults(include_inc=True)
 
     args = parser.parse_args()
 
