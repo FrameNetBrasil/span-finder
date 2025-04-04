@@ -3,8 +3,6 @@ from spacy.lang.es import Spanish
 from spacy.lang.pt import Portuguese
 from trankit import Pipeline
 
-TRANKIT_PIPE = None
-
 
 class Token:
     def __init__(self, text: str, idx: int):
@@ -27,7 +25,11 @@ def spacy_tokenize(df):
 
     unique_texts = df.drop_duplicates("text")[["text", "language"]]
     unique_texts["tokens"] = [
-        [Token(text=token.text, idx=token.idx) for token in tokenizers[lang](text)]
+        [
+            Token(text=token.text, idx=token.idx)
+            for token in tokenizers[lang](text)
+            if not token.is_space
+        ]
         for lang, text in zip(unique_texts["language"], unique_texts["text"])
     ]
 
@@ -73,10 +75,10 @@ def get_token_spans(row):
     start_token = -1
 
     for i, token in enumerate(row["tokens"]):
-        span = (token.idx, token.idx+len(token.text))
+        span = (token.idx, token.idx + len(token.text))
         if (span[0] <= row["startChar"] <= span[1]) and (start_token == -1):
             start_token = i
-        if (span[0] <= row["endChar"] <= span[1]):
+        if span[0] <= row["endChar"] <= span[1]:
             break
     end_token = i
 
