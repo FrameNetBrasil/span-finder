@@ -58,7 +58,7 @@ def get_fn_structure(config):
     )
 
 
-def get_spans_40(engine, corpora):
+def get_spans_40(engine, corpora, exclude_docs):
     query = """
         --
         -- Targets
@@ -87,6 +87,7 @@ def get_spans_40(engine, corpora):
         join view_frame f on f.idFrame = l.idFrame
         left join frameelement fe on fe.idFrameElement = l.incorporatedFE
         where c.entry in %(corpora)s
+            and d.name not in %(exclude_docs)s
             and d.idLanguage = 2
             and f.idLanguage = 2
             and s.idLanguage in (1, 2, 3)
@@ -116,13 +117,14 @@ def get_spans_40(engine, corpora):
         join sentence s on s.idSentence = a.idSentence
         join view_frame f on f.idFrame = fe.idFrame
         where c.entry in %(corpora)s
+            and d.name not in %(exclude_docs)s
             and fe.idLanguage = 2
             and d.idLanguage = 2
             and f.idLanguage = 2
             and s.idLanguage in (1, 2, 3)
             and fe.idInstantiationType in (12, 17);"""
 
-    params = {"corpora": tuple(corpora)}
+    params = {"corpora": tuple(corpora), "exclude_docs": tuple(exclude_docs or [""])}
     df = pd.read_sql(query, engine, params=params)
 
     df["isTarget"] = df["isTarget"].astype(bool)
@@ -134,7 +136,7 @@ def get_spans_40(engine, corpora):
     return df
 
 
-def get_spans_38(engine, corpora):
+def get_spans_38(engine, corpora, exclude_docs):
     query = """
         select
             corpus.idCorpus,
@@ -161,10 +163,11 @@ def get_spans_38(engine, corpora):
         left join entry feentry on feentry.entry = frameelement.entry and feentry.idLanguage = 2
         where sentence.idLanguage in (1,2,3)
             and corpus.entry in %(corpora)s
+            and document.entry not in %(exclude_docs)s
             and layer.idLayerType in (1, 2) -- FE and target
             and label.idInstantiationType in (12, 17) -- normal instantiation and incorporation"""
 
-    params = {"corpora": tuple(corpora)}
+    params = {"corpora": tuple(corpora), "exclude_docs": tuple(exclude_docs or [""])}
     df = pd.read_sql(query, engine, params=params)
 
     df["isTarget"] = df["isTarget"].astype(bool)
@@ -180,9 +183,9 @@ def get_spans(all_config, config_key, frames, fes):
     )
 
     if config["version"] == "4.0":
-        df = get_spans_40(engine, config["corpora"])
+        df = get_spans_40(engine, config["corpora"], config.get("exclude_docs", None))
     elif config["version"] == "3.8":
-        df = get_spans_38(engine, config["corpora"])
+        df = get_spans_38(engine, config["corpora"], config.get("exclude_docs", None))
     else:
         raise ValueError(
             'Invalid value for DB \'version\'. Must be one of: "4.0", "3.8".'

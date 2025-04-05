@@ -8,7 +8,8 @@ port = 3307
 name = "webtool40_db"
 user = "user"
 password = "password"
-corpora = ["crp_cetenfolha","crp_braziltour","crp_domínio_público","crp_copa 2014 fn-br","crp_copa 2014 fn-br english","crp_copa_2014_fn-br_espanhol","crp_m.knob_pt_br","crp_metonimia","crp_general","crp_legenda_en","crp_pedro_pelo_mundo","crp_hoje_eu_nao_quero","crp_pedro_pelo_mundo_en","crp_curso_dataset","crp_curta_metragem_enqvs_linguas",]
+corpora = ["crp_metonimia","crp_general","crp_legenda_en","crp_pedro_pelo_mundo","crp_hoje_eu_nao_quero","crp_pedro_pelo_mundo_en","crp_curso_dataset","crp_curta_metragem_enqvs_linguas", "crp_future vision fti", "crp_bula"]
+exclude_docs = ["doc_bula_medico_2_LOME", "doc_bula_paciente_2_lome", "doc_bula_medico_3_LOME", "doc_bula_medico_4_LOME", "doc_bula_paciente_3_LOME", "doc_bula_paciente_4_LOME"]
 
 [ehr_db]
 version = "4.0"

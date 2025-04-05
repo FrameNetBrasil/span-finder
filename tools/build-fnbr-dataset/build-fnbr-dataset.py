@@ -118,11 +118,25 @@ def write_meta(frames, fes, args, filename):
             zip(map(lambda s: f"fe_{s}", fes["idFrameElement"]), fes[f"feName_{lang}"])
         )
 
+    corpora = []
+    if "fnbr" in args.sources:
+        corpora.extend(args.db_config["fnbr_db"]["corpora"])
+    if "ehr" in args.sources:
+        corpora.extend(args.db_config["ehr_db"]["corpora"])
+
+    excluded_docs = []
+    if "fnbr" in args.sources:
+        excluded_docs.extend(args.db_config["fnbr_db"].get("exclude_docs", []))
+    if "ehr" in args.sources:
+        excluded_docs.extend(args.db_config["ehr_db"].get("exclude_docs", []))
+
     with open(filename, "w") as fp:
-        json.dump(
+        json.dump( 
             {
                 "timestamp": str(datetime.datetime.now()),
                 "structure_db": args.db_config[args.structure_db]["name"],
+                "fnbr_corpora": corpora,
+                "fnbr_excluded_docs": excluded_docs,
                 "incorporations_included": args.include_inc,
                 "tokenizer": args.tokenizer,
                 "frames": [
