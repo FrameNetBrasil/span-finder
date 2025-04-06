@@ -174,7 +174,7 @@ def write_ontology(frames, fes, spans, filename):
 
     # Build ontology out of annotated entities only
     frames = frames[frames["idFrame"].isin(spans["idFrame"].unique())]
-    fes = fes[fes["idFrame"].isin(spans["idFrameElement"].unique())]
+    fes = fes[fes["idFrameElement"].isin(spans["idFrameElement"].unique())]
 
     lines.append(
         "@@VIRTUAL_ROOT@@\t" + "\t".join(frames["idFrame"].apply(lambda i: f"frm_{i}"))
