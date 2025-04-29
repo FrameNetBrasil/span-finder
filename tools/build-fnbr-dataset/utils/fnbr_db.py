@@ -12,8 +12,8 @@ def get_fn_structure(config):
         """
         select
             frm1.idFrame,
-            frm1.name as 'frameName_pt',
-            frm2.name as 'frameName_en'
+            trim(frm1.name) as 'frameName_pt',
+            trim(frm2.name) as 'frameName_en'
         from view_frame frm1
         join view_frame frm2 on frm2.idFrame = frm1.idFrame
         where frm1.idLanguage = 1 and frm2.idLanguage = 2;""",
@@ -25,8 +25,8 @@ def get_fn_structure(config):
         select
             fe1.idFrame,
             fe1.idFrameElement,
-            fe1.name as 'feName_pt',
-            fe2.name as 'feName_en',
+            trim(fe1.name) as 'feName_pt',
+            trim(fe2.name) as 'feName_en',
             fe1.coreType
         from view_frameelement fe1
         join view_frameelement fe2 on fe2.idFrameElement = fe1.idFrameElement
@@ -41,7 +41,7 @@ def get_fn_structure(config):
             lu.idFrame,
             lu.idLU,
             lu.incorporatedFE as 'idFrameElement',
-            lu.name,
+            trim(lu.name),
             lu.idLanguage as 'language'
         from view_lu lu
         where lu.idLanguage in (1, 2, 3);""",
@@ -132,6 +132,8 @@ def get_spans_40(engine, corpora, exclude_docs):
         {12: "NORMAL", 17: "INC"}
     )
     df["language"] = df["language"].replace({1: "pt", 2: "en", 3: "es"})
+    df["frameName_en"] = df["frameName_en"].str.strip()
+    df["feName_en"] = df["feName_en"].str.strip()
 
     return df
 
