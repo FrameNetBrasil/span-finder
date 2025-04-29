@@ -166,6 +166,7 @@ def write_meta(frames, fes, args, filename):
                 "names": names,
             },
             fp,
+            ensure_ascii=False
         )
 
 
@@ -188,7 +189,7 @@ def write_ontology(frames, fes, spans, filename):
 
 def write_jsonl(data, filename):
     with open(filename, "w") as fp:
-        fp.writelines((map(lambda d: json.dumps(d) + "\n", data)))
+        fp.writelines((map(lambda d: json.dumps(d, ensure_ascii=False) + "\n", data)))
 
 
 # Argument Parsing Functions
