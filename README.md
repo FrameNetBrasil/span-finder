@@ -14,6 +14,12 @@ docker build . -t "<tag-name>"
 
 A good ``<tag-name>`` to make things easier is **span-finder**.
 
+To prevent errors when downloading the spaCy model, use:
+
+```shell
+docker build --network=host . -t "<tag-name>"
+```
+
 ## Training
 
 ### (optional) Building the dataset
