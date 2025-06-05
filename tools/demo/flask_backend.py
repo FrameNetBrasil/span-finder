@@ -36,19 +36,19 @@ default_sentence = '因为 आरजू です vegan , هي купил soja .'
 
 
 def tokenize(sentences, lang="en"):
-    tokens = list()
-    char_spans = list()
-    for i, sent in enumerate(sentences):
+    tokens, spans = [], []
+    for sent in sentences:
         if not isinstance(sent, str) or sent.strip() == "":
             continue
-        tokens.append([])
-        char_spans.append([])
+        token_list = []
+        span_list = []
         for token in tokenizers[lang](sent):
             if token.text.strip() != "":
-                tokens[-1].append(token.text)
-                char_spans[-1].append((token.idx, token.idx + len(token)))
-
-    return tokens, char_spans
+                token_list.append(token.text)
+                span_list.append((token.idx, token.idx + len(token)))
+        tokens.append(token_list)
+        spans.append(span_list)
+    return tokens, spans
 
 
 def visualized_prediction(inputs: List[str], prediction: Span, prefix='', lang='pt'):
@@ -107,7 +107,8 @@ def include_char_spans(annotations, char_spans):
         start_char = char_spans[annotation["span"][0]][0]
         end_char = char_spans[annotation["span"][1]][1]
         annotation["char_span"] = [start_char, end_char]
-        set_char_span(annotation["children"], char_spans) # Recursive call
+        if "children" in annotation:
+            include_char_spans(annotation["children"], char_spans)
 
 
 @app.route('/')
