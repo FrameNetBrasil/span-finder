@@ -92,3 +92,17 @@ The docker image also contains the files required to run the demo. To do so, whe
 ```shell
 sudo docker run -v $(pwd)/model/:/srv/model -p 7749:7749 --gpus all --entrypoint python -it "span-finder" tools/demo/flask_backend.py
 ```
+
+## Using batch inference (simple)
+
+This repo also includes a script for easy batch inference. The script reads pure text data from ```STDIN``` and outputs one JSON for each line to ```STDOUT```. To use it, create a **txt** file having a single sentnece per line. Assuming that the file is ```sentences.txt```, use this command:
+
+```shell
+cat sentences.txt | sudo docker run -v $(pwd)/model/:/srv/model --gpus all --entrypoint python -i "span-finder" scripts/predict_span_batch.py
+```
+
+This will print out results. To save them, direct ```STDOUT``` to a **.jsonl** file (e.g. ```lome_outputs.jsonl```):
+
+```shell
+cat sentences.txt | sudo docker run -v $(pwd)/model/:/srv/model --gpus all --entrypoint python -i "span-finder" scripts/predict_span_batch.py > lome_outputs.jsonl
+```
