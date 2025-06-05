@@ -4,6 +4,11 @@ from typing import *
 
 from flask import Flask
 from flask import request
+from flask import jsonify
+
+from spacy.lang.en import English
+from spacy.lang.es import Spanish
+from spacy.lang.pt import Portuguese
 
 from sftp import SpanPredictor, Span
 
@@ -24,9 +29,27 @@ assert m_config["dataset_reader"]["dataset_timestamp"] == ds_meta["timestamp"]
 with open('tools/demo/flask_template.html') as fp:
     template = fp.read()
 
+tokenizers = { "en": English().tokenizer, "pt": Portuguese().tokenizer, "es": Spanish().tokenizer,}
 predictor = SpanPredictor.from_path(args.m, cuda_device=args.d)
 app = Flask(__name__)
 default_sentence = '因为 आरजू です vegan , هي купил soja .'
+
+
+def tokenize(sentences, lang="en"):
+    tokens = list()
+    char_spans = list()
+    for i, sent in enumerate(sentences):
+        if not isinstance(sent, str) or sent.strip() == "":
+            continue
+        tokens.append([])
+        char_spans.append([])
+        for token in tokenizers[lang](sent):
+            if token.text.strip() != "":
+                tokens[-1].append(token.text)
+                char_spans[-1].append((token.idx, token.idx + len(token)))
+
+    return tokens, char_spans
+
 
 def visualized_prediction(inputs: List[str], prediction: Span, prefix='', lang='pt'):
     spans = list()
@@ -79,6 +102,14 @@ def structured_prediction(inputs, prediction, lang='pt'):
     return '\n<ul class="list-group">\n' + content + '\n</ul>'
 
 
+def include_char_spans(annotations, char_spans):
+    for annotation in annotations:
+        start_char = char_spans[annotation["span"][0]][0]
+        end_char = char_spans[annotation["span"][1]][1]
+        annotation["char_span"] = [start_char, end_char]
+        set_char_span(annotation["children"], char_spans) # Recursive call
+
+
 @app.route('/')
 def sftp():
     ret = template
@@ -87,8 +118,8 @@ def sftp():
     ret = ret.replace('TIMESTAMP', ds_meta["timestamp"])
     if input is not None:
         ret = ret.replace('DEFAULT_SENTENCE', input)
-        sentences = input.split('\n')
-        model_outputs = predictor.predict_batch_sentences(sentences, max_tokens=512)
+        tokens, _ = tokenize(input.split('\n'))
+        model_outputs = predictor.predict_batch_sentences(tokens, max_tokens=512)
         # model_outputs[0].span.tree(model_outputs[0].sentence)
         vis_pred, str_pred = list(), list()
         for sent_idx, output in enumerate(model_outputs):
@@ -101,6 +132,35 @@ def sftp():
         ret = ret.replace('VISUALIZED_PREDICTION', '')
         ret = ret.replace('STRUCTURED_PREDICTION', '')
     return ret
+
+
+@app.route('/parse', methods=['POST'])
+def parse():
+    try:
+        data = request.get_json(force=True)
+        sentences = data.get('sentences', [])
+        lang = data.get('lang', 'en')
+
+        if not isinstance(sentences, list) or not all(isinstance(s, str) for s in sentences):
+            return jsonify({'error': 'Invalid input: "sentences" must be a list of strings.'}), 400
+        if lang not in tokenizers:
+            return jsonify({'error': f'Invalid language: "{lang}". Must be one of {list(tokenizers.keys())}.'}), 400
+
+        tokens, char_spans = tokenize(sentences, lang=lang)
+        model_outputs = predictor.predict_batch_sentences(tokens, max_tokens=512)
+        response_data = []
+        for i, output in enumerate(model_outputs):
+            sent_tokens = output.sentence
+            annotations = output.span.to_json()["children"]
+            include_char_spans(annotations, char_spans[i])
+            response_data.append({
+                'tokens': sent_tokens,
+                'annotations': annotations
+            })
+
+        return jsonify(response_data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 app.run(host='0.0.0.0', port=args.p)
