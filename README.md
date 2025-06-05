@@ -12,7 +12,7 @@ Make sure you have docker installed and then run at the root of the repo:
 docker build . -t "<tag-name>"
 ```
 
-A good ``<tag-name>`` to make things easier is **lome**.
+A good ``<tag-name>`` to make things easier is **span-finder**.
 
 ## Training
 
@@ -46,7 +46,7 @@ When the docker image is built, it already configures relevant paths for the tra
 Suppose the **Data** and **Checkpoint** folders are ``data`` and ``model-checkpoint`` in the current folder. The run command should be:
 
 ```shell
-sudo docker run -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ --gpus all -it "lome"
+sudo docker run -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ --gpus all -it "span-finder"
 ```
 
 Once inside the container, you can run the following training command:
@@ -58,7 +58,7 @@ allennlp train -s $CHECKPOINT_PATH --include-package sftp config/fn.jsonnet
 It is important to note that ``$CHECKPOINT_PATH`` is already set on the image. To check all the default configurations for paths, check [.env.default](.env.default). Just be careful: if any of those paths are changed, the mapping of volumes need to change as well. The most important value is ``CUDA``. By default, the process will try to use **cuda:0**. To train on CPU, use the following command when running the container:
 
 ```shell
-sudo docker run -e CUDA=[-1] -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ -it "lome"
+sudo docker run -e CUDA=[-1] -v $(pwd)/data/:/srv/data -v $(pwd)/model-checkpoint:/srv/checkpoint/ -it "span-finder"
 ```
 
 or set the variable inside the container:
