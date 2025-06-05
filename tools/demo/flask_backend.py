@@ -35,14 +35,14 @@ app = Flask(__name__)
 default_sentence = '因为 आरजू です vegan , هي купил soja .'
 
 
-def tokenize(sentences, lang="en"):
+def tokenize(sentences, tokenizer):
     tokens, spans = [], []
     for sent in sentences:
         if not isinstance(sent, str) or sent.strip() == "":
             continue
         token_list = []
         span_list = []
-        for token in tokenizers[lang](sent):
+        for token in tokenizer(sent):
             if token.text.strip() != "":
                 token_list.append(token.text)
                 span_list.append((token.idx, token.idx + len(token)))
@@ -119,7 +119,8 @@ def sftp():
     ret = ret.replace('TIMESTAMP', ds_meta["timestamp"])
     if input is not None:
         ret = ret.replace('DEFAULT_SENTENCE', input)
-        tokens, _ = tokenize(input.split('\n'))
+        tokenizer = tokenizers["en"]
+        tokens, _ = tokenize(input.split('\n'), tokenizer)
         model_outputs = predictor.predict_batch_sentences(tokens, max_tokens=512)
         # model_outputs[0].span.tree(model_outputs[0].sentence)
         vis_pred, str_pred = list(), list()
@@ -147,7 +148,8 @@ def parse():
         if lang not in tokenizers:
             return jsonify({'error': f'Invalid language: "{lang}". Must be one of {list(tokenizers.keys())}.'}), 400
 
-        tokens, char_spans = tokenize(sentences, lang=lang)
+        tokenizer = tokenizers[lang]
+        tokens, char_spans = tokenize(sentences, tokenizer)
         model_outputs = predictor.predict_batch_sentences(tokens, max_tokens=512)
         response_data = []
         for i, output in enumerate(model_outputs):
